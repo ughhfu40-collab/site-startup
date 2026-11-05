@@ -1,0 +1,2 @@
+import {database} from './database.mjs';
+const email=process.argv[2]?.trim().toLowerCase();if(!email){console.error('Usage: npm run admin -- owner@example.com');process.exit(1);}const db=database();const r=db.prepare("UPDATE users SET role='admin' WHERE email=?").run(email);db.close();if(!r.changes){console.error('Register this account first, then run the command on the server.');process.exit(1);}console.log('Administrator role granted. Sign in again.');
