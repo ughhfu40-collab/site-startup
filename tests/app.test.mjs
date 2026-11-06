@@ -22,9 +22,10 @@ test('Auth, profile, secure bookings, admin Excel, sessions, persistence',async(
   const bob=await req('/api/auth/register','POST',{name:'Bob',email:'bob@example.test',password:'TestPassword123!'});const cb=bob.cookie;
   assert.equal((await req('/api/auth/login','POST',{email:'alice@example.test',password:'WRONG'})).status,401);
   assert.equal((await req('/api/auth/register','POST',{name:'Alice',email:'alice@example.test',password:'TestPassword123!'})).status,409);
-  const startsAt=new Date(Date.now()+3600000).toISOString();const booking=await req('/api/bookings','POST',{service:'chatgpt',hours:3,startsAt,total:1},ca);assert.equal(booking.status,201);assert.equal(booking.data.total,1800);assert.equal((await req('/api/bookings','POST',{service:'gemini',hours:2,startsAt},ca)).data.total,750);
+  const startsAt=new Date(Math.ceil((Date.now()+3600000)/1800000)*1800000).toISOString();const booking=await req('/api/bookings','POST',{service:'chatgpt',hours:3,startsAt,total:1},ca);assert.equal(booking.status,201);assert.equal(booking.data.total,1800);assert.equal((await req('/api/bookings','POST',{service:'gemini',hours:2,startsAt},ca)).data.total,750);
   assert.equal((await req('/api/bookings','POST',{service:'gemini',hours:100,startsAt},ca)).status,400);
   assert.equal((await req('/api/bookings','POST',{service:'claude',hours:1,startsAt:'2000-01-01'},ca)).status,400);
+  for (const startsAt of [new Date(Date.now()+8*86400000).toISOString(),new Date(Math.ceil(Date.now()/1800000)*1800000+60000).toISOString()]) assert.equal((await req('/api/bookings','POST',{service:'claude',hours:1,startsAt},ca)).status,400);
   assert.equal((await req('/api/bookings','GET',undefined,ca)).data.length,2);
   assert.equal((await req('/api/bookings','GET',undefined,cb)).data.length,0);
   assert.equal((await req('/api/bookings','DELETE',{id:booking.data.id},cb)).data.ok,false);
