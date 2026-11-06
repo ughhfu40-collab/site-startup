@@ -7,3 +7,6 @@ dist/
 *.log
 coverage/
 .DS_Store
+
+# Private configuration from older versions must never be committed.
+studyhour-admin.local.json

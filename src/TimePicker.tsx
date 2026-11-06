@@ -6,7 +6,7 @@ function Wheel({ label, options, value, onChange }: { label: string; options: Op
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const index = Math.max(0, options.findIndex(o => o.value === value));
   const keys = options.map(o => o.value).join('|');
-  useLayoutEffect(() => { if (ref.current) ref.current.scrollTop = index * 40; }, [index, keys]);
+  useLayoutEffect(() => { clearTimeout(timer.current); if (ref.current) ref.current.scrollTop = index * 40; }, [index, keys]);
   useEffect(() => () => clearTimeout(timer.current), []);
   function select(i: number) { const item = options[Math.max(0, Math.min(options.length - 1, i))]; if (item) onChange(item.value); }
   return <div className="time-column"><span className="wheel-label">{label}</span><div className="wheel-shell"><div className="wheel-highlight"/><div ref={ref} className="time-wheel" role="listbox" aria-label={label} tabIndex={0} aria-activedescendant={`wheel-${label}-${value}`} onKeyDown={e => {

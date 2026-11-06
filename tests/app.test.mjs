@@ -14,6 +14,8 @@ test('Auth, profile, secure bookings, admin Excel, sessions, persistence',async(
  async function req(path,method='GET',data,cookie='',from=origin){const r=await fetch(base+path,{method,headers:{Origin:from,'Content-Type':'application/json',Cookie:cookie},body:data===undefined?undefined:JSON.stringify(data)});const contentType=r.headers.get('content-type')||'';return{status:r.status,cookie:r.headers.get('set-cookie')?.split(';')[0],headers:r.headers,data:contentType.includes('json')?await r.json():Buffer.from(await r.arrayBuffer())};}
  try{
   assert.equal((await req('/api/auth/me')).data.user,null);
+  assert.equal((await fetch(base+'/api/auth/register',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:'{broken'})).status,400);
+  assert.equal((await fetch(base+'/api/auth/register',{method:'POST',headers:{Origin:origin,'Content-Type':'text/plain'},body:'{}'})).status,415);
   assert.equal((await req('/api/bookings')).status,401);
   assert.equal((await req('/api/auth/register','POST',{},'','http://evil.test')).status,403);
   assert.equal((await req('/api/auth/register','POST',{name:'A',email:'bad',password:'short'})).status,400);
@@ -26,14 +28,16 @@ test('Auth, profile, secure bookings, admin Excel, sessions, persistence',async(
   assert.equal((await req('/api/bookings','POST',{service:'gemini',hours:100,startsAt},ca)).status,400);
   assert.equal((await req('/api/bookings','POST',{service:'claude',hours:1,startsAt:'2000-01-01'},ca)).status,400);
   for (const startsAt of [new Date(Date.now()+8*86400000).toISOString(),new Date(Math.ceil(Date.now()/1800000)*1800000+60000).toISOString()]) assert.equal((await req('/api/bookings','POST',{service:'claude',hours:1,startsAt},ca)).status,400);
+  const repeats=await Promise.all(Array.from({length:3},()=>req('/api/bookings','POST',{service:'chatgpt',hours:3,startsAt},ca)));assert.ok(repeats.every(r=>r.status===200&&r.data.id===booking.data.id));
   assert.equal((await req('/api/bookings','GET',undefined,ca)).data.length,2);
   assert.equal((await req('/api/bookings','GET',undefined,cb)).data.length,0);
   assert.equal((await req('/api/bookings','DELETE',{id:booking.data.id},cb)).data.ok,false);
   assert.equal((await req('/api/bookings','DELETE',{id:booking.data.id},ca)).data.ok,true);
   assert.equal((await req('/api/profile','PATCH',{name:'Alice New'},ca)).data.user.name,'Alice New');
-  assert.equal((await req('/api/admin/export','GET',undefined,ca)).status,403);
+  assert.equal((await req('/api/admin/export','GET',undefined,ca)).status,403);assert.equal((await req('/api/admin/bookings','DELETE',{id:booking.data.id},cb)).status,403);
   db.prepare("UPDATE users SET role='admin' WHERE id=?").run(alice.data.user.id);
   const exported=await req('/api/admin/export','GET',undefined,ca);assert.equal(exported.status,200);assert.equal(exported.data.readUInt32LE(0),0x04034b50);writeFileSync('/tmp/studyhour-test-export.xlsx',exported.data);assert.equal((await req('/api/admin/bookings','GET',undefined,ca)).data.length,2);
+  const gemini=(await req('/api/bookings','GET',undefined,ca)).data.find(b=>b.service==='gemini');assert.equal((await req('/api/admin/bookings','DELETE',{id:gemini.id},ca)).status,200);assert.equal((await req('/api/bookings','GET',undefined,ca)).data.find(b=>b.id===gemini.id).status,'cancelled');assert.equal((await req('/api/bookings','DELETE',{id:gemini.id},ca)).data.ok,true);assert.equal((await req('/api/admin/bookings','DELETE',{id:'missing'},ca)).status,404);
   const oldSession=ca;const changed=await req('/api/auth/password','POST',{currentPassword:'TestPassword123!',password:'ChangedPassword123!'},ca);assert.equal(changed.status,200);ca=changed.cookie;assert.equal((await req('/api/bookings','GET',undefined,oldSession)).status,401);
   assert.equal((await req('/api/auth/login','POST',{email:'alice@example.test',password:'TestPassword123!'})).status,401);
   assert.equal((await req('/api/auth/login','POST',{email:'alice@example.test',password:'ChangedPassword123!'})).status,200);
