@@ -3,6 +3,7 @@ import {readFile,stat} from 'node:fs/promises';
 import {resolve,extname,sep} from 'node:path';
 import {database} from './database.mjs';
 import {createApi} from './app.mjs';
+import {bootstrapAdmin} from './bootstrap-admin.mjs';
 const dev=process.argv.includes('--dev');
 const arg=name=>process.argv.includes(name)?process.argv[process.argv.indexOf(name)+1]:null;
 const port=Number(arg('--port')||process.env.PORT||(dev?5173:3000));
@@ -10,7 +11,7 @@ const host=arg('--host')||process.env.HOST||'0.0.0.0';
 const origin=process.env.APP_ORIGIN||`http://localhost:${port}`;
 if(process.env.NODE_ENV==='production'&&!process.env.APP_ORIGIN)throw Error('Set APP_ORIGIN to the public origin before starting production.');
 const secure=process.env.COOKIE_SECURE==='true'||origin.startsWith('https://');
-const db=database();const api=createApi(db,{origin,secure,additionalOrigins:dev?[`http://127.0.0.1:${port}`,`http://localhost:${port}`]:[]});
+const db=database();await bootstrapAdmin(db);const api=createApi(db,{origin,secure,additionalOrigins:dev?[`http://127.0.0.1:${port}`,`http://localhost:${port}`]:[]});
 let vite;if(dev){const {createServer}=await import('vite');vite=await createServer({server:{middlewareMode:true},appType:'spa'});}
 const root=resolve('dist');const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8'};
 const server=http.createServer(async(req,res)=>{
